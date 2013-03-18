@@ -1,0 +1,19 @@
+# OASIS_START
+# DO NOT EDIT (digest: f61e3df6a1df181b254d1bfae46bb8dd)
+version = "109.14.00"
+description = "Extension for printf format strings."
+archive(byte) = "custom_printf.cma"
+archive(byte, plugin) = "custom_printf.cma"
+archive(native) = "custom_printf.cmxa"
+archive(native, plugin) = "custom_printf.cmxs"
+exists_if = "custom_printf.cma"
+package "syntax" (
+ version = "109.14.00"
+ description = "Syntax extension for printf format strings"
+ requires = "camlp4 type_conv"
+ archive(syntax, preprocessor) = "pa_custom_printf.cma"
+ archive(syntax, toploop) = "pa_custom_printf.cma"
+ exists_if = "pa_custom_printf.cma"
+)
+# OASIS_STOP
+
