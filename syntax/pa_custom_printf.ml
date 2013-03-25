@@ -38,8 +38,6 @@ let has_subformats (fmt:string) =
   in
   loop 0
 
-(* CR-soon moconnor: Should allow people to use flags in format specifiers, like
-   "%30{Module}" *)
 (* returns a list of strings where even indexed elements are parts of the format string
    that the preprocessor won't touch and odd indexed elements are the contents of %{...}
    specifications. *)
@@ -130,7 +128,6 @@ let string_to_expr _loc s =
       failwithf _loc "sexp converter is used in %S, but no \"sexp_of\" quotation could \
                       be found (include pa_sexp?)" s ()
     | Some sexp_of_quote ->
-      (* CR-soon moconnor: Not sure about the [None] for loc_name_opt argument here. *)
       let e = sexp_of_quote _loc None s in
       let arg = gensym () in
       <:expr<fun $lid:arg$ -> Sexplib.Sexp.to_string_hum ($e$ $lid:arg$)>>
