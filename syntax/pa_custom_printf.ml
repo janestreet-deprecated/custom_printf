@@ -238,4 +238,5 @@ let f = object
     super#expr (loop [] expr)
 end
 in
-AstFilters.register_str_item_filter f#str_item
+AstFilters.register_str_item_filter f#str_item;
+AstFilters.register_topphrase_filter f#str_item
