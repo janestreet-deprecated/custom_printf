@@ -219,7 +219,7 @@ let apply _loc fmt_string printf orig_args =
 
 let f = object
   inherit Ast.map as super
-  method expr expr =
+  method! expr expr =
     let fmt_string = function
       (* camlp4 parses !"literal" as "literal".val  *)
       | <:expr< $str:s$.val >> -> Some s
