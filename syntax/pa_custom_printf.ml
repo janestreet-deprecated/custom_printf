@@ -169,31 +169,40 @@ let abstract_lids _loc lids body =
     <:expr< fun $lid:lid$ -> $body$ >>
   ) ~init:body lids
 
-let let_ _loc lid_expr_list ~in_:body =
-  List.fold_right ~f:(fun (lid, expr) body ->
-    <:expr< let $lid:lid$ = $expr$ in $body$ >>
+let let_opts _loc lid_expr_list ~in_:body =
+  List.fold_right ~f:(fun opt body ->
+    match opt with
+    | None -> body
+    | Some (lid, expr) -> <:expr< let $lid:lid$ = $expr$ in $body$ >>
   ) ~init:body lid_expr_list
+
+let name _loc arg =
+  match arg with
+  | <:expr< $id:_$ >>
+  | <:expr< $int:_$ >> -> None, arg
+  | _ ->
+    let symbol = gensym () in
+    Some (symbol, arg), <:expr< $lid:symbol$ >>
 
 let apply _loc fmt_string printf orig_args =
   let num_all_args = num_args _loc fmt_string in
-  let let_bindings, fun_bindings, args =
+  let let_bindings_opt, fun_bindings, args =
     let num_fun_bindings = num_all_args - List.length orig_args in
-    let let_bindings = List.map orig_args ~f:(fun arg -> gensym (), arg) in
-    let args = List.map let_bindings ~f:(fun (sym,_arg) -> <:expr<$lid:sym$>>) in
+    let let_bindings_opt, args = List.split (List.map orig_args ~f:(name _loc)) in
     if num_fun_bindings <= 0
     then
-      let_bindings, [], args
+      let_bindings_opt, [], args
     else
       let fun_bindings = Array.to_list (Array.init num_fun_bindings ~f:(fun (_:int) -> gensym ())) in
-      let_bindings, fun_bindings, args @ List.map fun_bindings
+      let_bindings_opt, fun_bindings, args @ List.map fun_bindings
         ~f:(fun s -> <:expr<$lid:s$>>)
   in
   let fmt_strings = explode _loc fmt_string in
   let processed_fmt_string =
     processed_format_string ~exploded_format_string:fmt_strings
   in
-  let printf_sym = gensym () in
-  let expr = <:expr< $lid:printf_sym$ $str:processed_fmt_string$>> in
+  let printf_binding_opt, printf = name _loc printf in
+  let expr = <:expr< $printf$ $str:processed_fmt_string$>> in
   let applied_expr =
     let rec loop expr format_chunks args =
       match format_chunks with
@@ -214,7 +223,7 @@ let apply _loc fmt_string printf orig_args =
     in
     loop expr fmt_strings args
   in
-  let_ _loc ((printf_sym, printf) :: let_bindings)
+  let_opts _loc (printf_binding_opt :: let_bindings_opt)
     ~in_:(abstract_lids _loc fun_bindings applied_expr)
 
 let f = object
