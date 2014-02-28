@@ -1,4 +1,34 @@
 # OASIS_START
+# DO NOT EDIT (digest: 6a8dabfd4e1be67141a64e8684ad01ab)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library custom_printf
+"lib/custom_printf.cmxs": use_custom_printf
+# Library pa_custom_printf
+"syntax/pa_custom_printf.cmxs": use_pa_custom_printf
+<syntax/*.ml{,i}>: package(camlp4.lib)
+<syntax/*.ml{,i}>: package(camlp4.quotations)
+<syntax/*.ml{,i}>: package(type_conv)
+# Executable test
+"sample/test.byte": package(sexplib)
+"sample/test.byte": package(sexplib.syntax)
+"sample/test.byte": package(pa_ounit)
+"sample/test.byte": package(pa_ounit.syntax)
+<sample/*.ml{,i}>: package(sexplib)
+<sample/*.ml{,i}>: package(sexplib.syntax)
+<sample/*.ml{,i}>: package(pa_ounit)
+<sample/*.ml{,i}>: package(pa_ounit.syntax)
 # OASIS_STOP
 <syntax/*.ml{,i}>: syntax_camlp4o
 <sample/*.ml>: syntax_camlp4o, pa_custom_printf
