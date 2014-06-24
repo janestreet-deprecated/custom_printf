@@ -149,16 +149,6 @@ let string_to_expr _loc s =
         "string %S should be of the form sexp:<type>, <Module>, or <Module>.<identifier>"
         s ()
 
-let split l ~at:n =
-  let rec aux acc n l =
-    if n = 0 then List.rev acc, l
-    else
-      match l with
-      | [] -> invalid_arg "split"
-      | hd :: tl -> aux (hd :: acc) (n - 1) tl
-  in
-  aux [] n l
-
 let apply_exprs _loc expr args =
   List.fold_left ~f:(fun expr arg ->
     <:expr< $expr$ $arg$ >>
@@ -176,19 +166,64 @@ let let_opts _loc lid_expr_list ~in_:body =
     | Some (lid, expr) -> <:expr< let $lid:lid$ = $expr$ in $body$ >>
   ) ~init:body lid_expr_list
 
-let name _loc arg =
+let name_to_preserve_side_effects arg =
+  let must_be_named = function
+    | Ast.ExNil _ (* This happens for [~label], which we treat the same as
+                     [~label:any_identifier] *)
+    | <:expr< $id:_$ >>
+    | <:expr< $int:_$ >> -> false
+    | _ -> true
+  in
+  let maybe_name expr =
+    if must_be_named expr
+    then
+      let loc = Ast.loc_of_expr expr in
+      let symbol = gensym () in
+      Some (symbol, expr), <:expr@loc< $lid:symbol$ >>
+    else None, expr
+  in
   match arg with
-  | <:expr< $id:_$ >>
-  | <:expr< $int:_$ >> -> None, arg
-  | _ ->
-    let symbol = gensym () in
-    Some (symbol, arg), <:expr< $lid:symbol$ >>
+  | Ast.ExLab (loc, name, expr) ->
+    let binding, expr = maybe_name expr in
+    binding, Ast.ExLab (loc, name, expr)
+  | Ast.ExOlb (loc, name, expr) ->
+    let binding, expr = maybe_name expr in
+    binding, Ast.ExOlb (loc, name, expr)
+  | expr ->
+    maybe_name expr
+
+let is_labeled_argument = function
+  | Ast.ExLab (_,_,_)
+  | Ast.ExOlb (_,_,_) -> true
+  | _ -> false
+
+let split_after_n_anon_args l ~n =
+  let rec aux acc n l =
+    if n = 0 then List.rev acc, l
+    else
+      match l with
+      | [] -> invalid_arg "split"
+      | hd :: tl ->
+        let n = if is_labeled_argument hd then n else n - 1 in
+        aux (hd :: acc) n tl
+  in
+  aux [] n l
+
+let split_last l =
+  match List.rev l with
+  | [] -> invalid_arg "split_last"
+  | h :: t -> List.rev t, h
 
 let apply _loc fmt_string printf orig_args =
   let num_all_args = num_args _loc fmt_string in
   let let_bindings_opt, fun_bindings, args =
-    let num_fun_bindings = num_all_args - List.length orig_args in
-    let let_bindings_opt, args = List.split (List.map orig_args ~f:(name _loc)) in
+    let orig_unlabeled_args =
+      List.filter orig_args ~f:(fun arg -> not (is_labeled_argument arg))
+    in
+    let num_fun_bindings = num_all_args - List.length orig_unlabeled_args in
+    let let_bindings_opt, args =
+      List.split (List.map orig_args ~f:name_to_preserve_side_effects)
+    in
     if num_fun_bindings <= 0
     then
       let_bindings_opt, [], args
@@ -201,25 +236,31 @@ let apply _loc fmt_string printf orig_args =
   let processed_fmt_string =
     processed_format_string ~exploded_format_string:fmt_strings
   in
-  let printf_binding_opt, printf = name _loc printf in
+  let printf_binding_opt, printf = name_to_preserve_side_effects printf in
   let expr = <:expr< $printf$ $str:processed_fmt_string$>> in
   let applied_expr =
     let rec loop expr format_chunks args =
       match format_chunks with
       | [] ->
-        (* [args] doesn't have to be empty if too many arguments are provided.  In that
-           case, we also apply too many arguments and there should be a type error
-           later *)
+        (* [args] doesn't have to be empty:  Probably too many arguments are provided, and
+           in that case, we also apply too many arguments and there should be a type error
+           later.  But it could also be something like
+
+               let f fmt = ksprintf fmt (fun s x y -> ...) in
+               f !"%{Time}" time x y
+        *)
         apply_exprs _loc expr args
       | normal_format :: rest ->
-        let args_format, args = split args ~at:(num_args _loc normal_format) in
+        let args_format, args = split_after_n_anon_args args ~n:(num_args _loc normal_format) in
         let expr = apply_exprs _loc expr args_format in
-        match rest, args with
-        | [], _ -> apply_exprs _loc expr args
-        | custom_format :: format_chunks, arg :: args ->
+        match rest with
+        | [] -> apply_exprs _loc expr args
+        | custom_format :: format_chunks ->
+          let args_format, args = split_after_n_anon_args args ~n:1 in
+          let labeled_args, arg = split_last args_format in
+          let expr = apply_exprs _loc expr labeled_args in
           let expr = <:expr< $expr$ ($string_to_expr _loc custom_format$ $arg$) >> in
           loop expr format_chunks args
-        | _ :: _, [] -> assert false
     in
     loop expr fmt_strings args
   in

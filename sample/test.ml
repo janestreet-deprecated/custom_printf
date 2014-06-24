@@ -81,3 +81,28 @@ TEST =
 TEST =
   let to_string () = "plop" in
   sprintf !"%{  }" () = "plop"
+
+TEST_UNIT =
+  let f ~labeled_arg:() fmt = ksprintf (fun _ -> ()) fmt in
+  (* Check that it compiles with the labeled argument applied both before and after the
+     format string *)
+  f ~labeled_arg:() !"hello";
+  f !"hello" ~labeled_arg:();
+;;
+
+TEST_UNIT =
+  let after1 = Some () in
+  let f ~before:() fmt = ksprintf (fun _ ?after1:_ () ~after2:() -> ()) fmt in
+  f ~before:() ?after1 !"hello" () ~after2:();
+  f ~before:() !"hello" ?after1 () ~after2:();
+  f !"hello" ~before:() ?after1 () ~after2:();
+  f !"hello" ?after1 ~before:() () ~after2:();
+;;
+
+TEST_UNIT =
+  let f ~label:() fmt = ksprintf (fun _ -> ()) fmt in
+  let r = ref 0 in
+  let g = f !"%{Time}" ~label:(incr r) in
+  g (Time.now ()); g (Time.now ());
+  assert (!r = 1);
+;;
