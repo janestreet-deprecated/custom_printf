@@ -2,3 +2,4 @@
 # OASIS_STOP
 <syntax/*.ml{,i}>: syntax_camlp4o
 <sample/*.ml>: syntax_camlp4o, pa_custom_printf
+"syntax/pa_custom_printf.ml": use_macro

@@ -100,10 +100,95 @@ let processed_format_string ~exploded_format_string =
   in
   String.concat l ~sep:""
 
+IFDEF OCAML_4_02 THEN
+
+module Count = struct
+  open CamlinternalFormatBasics
+
+  type ('a, 'b) seq =
+    | Z : ('a, 'a) seq
+    | S : ('a, 'b) seq -> (_ -> 'a, 'b) seq
+
+  let rec int_of_seq : type a b. (a, b) seq -> int = function
+    | S x -> int_of_seq x + 1
+    | Z -> 0
+
+  let count =
+    let rec loop_fmt : type a b c d e f. (a, b, c, d, e, f) fmt -> (a, f) seq = function
+      | Char fmt ->
+        S (loop_fmt fmt)
+      | Caml_char fmt ->
+        S (loop_fmt fmt)
+      | String (padding, fmt) ->
+        loop_padding padding (S (loop_fmt fmt))
+      | Caml_string (padding, fmt) ->
+        loop_padding padding (S (loop_fmt fmt))
+      | Int (_, padding, precision, fmt) ->
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+      | Int32 (_, padding, precision, fmt) ->
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+      | Nativeint (_, padding, precision, fmt) ->
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+      | Int64 (_, padding, precision, fmt) ->
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+      | Float (_, padding, precision, fmt) ->
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+      | Bool fmt ->
+        S (loop_fmt fmt)
+      | Flush fmt ->
+        loop_fmt fmt
+      | String_literal (_, fmt) ->
+        loop_fmt fmt
+      | Char_literal (_, fmt) ->
+        loop_fmt fmt
+      | Format_arg (_, _fmtty, fmt) ->
+        S (loop_fmt fmt)
+      | Format_subst _ ->
+        failwith "TODO: support format substitution"
+      | Alpha fmt ->
+        S (S (loop_fmt fmt))
+      | Theta fmt ->
+        S (loop_fmt fmt)
+      | Formatting (_, fmt) ->
+        loop_fmt fmt
+      | Reader _ ->
+        failwith "reader not supported/1"
+      | Scan_char_set _ ->
+        failwith "reader not supported/2"
+      | Scan_get_counter _ ->
+        failwith "reader not supported/3"
+      | Ignored_param (_, _fmt) ->
+        failwith "reader not supported/4"
+      | End_of_format ->
+        Z
+    and loop_padding : type a b c. (a, b) padding -> (b, c) seq -> (a, c) seq = fun p x ->
+      match p with
+      | No_padding -> x
+      | Lit_padding _ -> x
+      | Arg_padding _ -> S x
+    and loop_precision : type a b c. (a, b) precision -> (b, c) seq -> (a, c) seq = fun p x ->
+      match p with
+      | No_precision -> x
+      | Lit_precision _ -> x
+      | Arg_precision -> S x
+    in
+    fun s ->
+      let CamlinternalFormat.Fmt_EBB fmt = CamlinternalFormat.fmt_ebb_of_string s in
+      int_of_seq (loop_fmt fmt)
+end
+
+let num_args loc (format : string) =
+    let format = processed_format_string ~exploded_format_string:(explode loc format) in
+  Count.count format
+
+ELSE
+
 let num_args loc (format : string) =
   let module P = Printf.CamlinternalPr in
   let format = processed_format_string ~exploded_format_string:(explode loc format) in
   (P.Tformat.ac_of_format (Obj.magic format)).P.Tformat.ac_rglr
+
+ENDIF
 
 let get_sexp_of_quote () =
   try
