@@ -105,52 +105,57 @@ IFDEF OCAML_4_02 THEN
 module Count = struct
   open CamlinternalFormatBasics
 
-  type ('a, 'b) seq =
-    | Z : ('a, 'a) seq
-    | S : ('a, 'b) seq -> (_ -> 'a, 'b) seq
+  type 'a seq =
+    | Z : unit seq
+    | S : 'a seq -> (_ -> 'a) seq
 
-  let rec int_of_seq : type a b. (a, b) seq -> int = function
+  let rec int_of_seq : type a. a seq -> int = function
     | S x -> int_of_seq x + 1
     | Z -> 0
 
   let count =
-    let rec loop_fmt : type a b c d e f. (a, b, c, d, e, f) fmt -> (a, f) seq = function
+    let rec loop_fmt : type a b c d e f. (a, b, c, d, e, f) fmt -> f seq -> a seq = fun fmt k ->
+      match fmt with
       | Char fmt ->
-        S (loop_fmt fmt)
+        S (loop_fmt fmt k)
       | Caml_char fmt ->
-        S (loop_fmt fmt)
+        S (loop_fmt fmt k)
       | String (padding, fmt) ->
-        loop_padding padding (S (loop_fmt fmt))
+        loop_padding padding (S (loop_fmt fmt k))
       | Caml_string (padding, fmt) ->
-        loop_padding padding (S (loop_fmt fmt))
+        loop_padding padding (S (loop_fmt fmt k))
       | Int (_, padding, precision, fmt) ->
-        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt k)))
       | Int32 (_, padding, precision, fmt) ->
-        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt k)))
       | Nativeint (_, padding, precision, fmt) ->
-        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt k)))
       | Int64 (_, padding, precision, fmt) ->
-        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt k)))
       | Float (_, padding, precision, fmt) ->
-        loop_padding padding (loop_precision precision (S (loop_fmt fmt)))
+        loop_padding padding (loop_precision precision (S (loop_fmt fmt k)))
       | Bool fmt ->
-        S (loop_fmt fmt)
+        S (loop_fmt fmt k)
       | Flush fmt ->
-        loop_fmt fmt
+        loop_fmt fmt k
       | String_literal (_, fmt) ->
-        loop_fmt fmt
+        loop_fmt fmt k
       | Char_literal (_, fmt) ->
-        loop_fmt fmt
+        loop_fmt fmt k
       | Format_arg (_, _fmtty, fmt) ->
-        S (loop_fmt fmt)
+        S (loop_fmt fmt k)
       | Format_subst _ ->
         failwith "TODO: support format substitution"
       | Alpha fmt ->
-        S (S (loop_fmt fmt))
+        S (S (loop_fmt fmt k))
       | Theta fmt ->
-        S (loop_fmt fmt)
-      | Formatting (_, fmt) ->
-        loop_fmt fmt
+        S (loop_fmt fmt k)
+      | Formatting_lit (_, fmt) ->
+        loop_fmt fmt k
+      | Formatting_gen (Open_tag (Format (tag_fmt, _)), fmt) ->
+        loop_fmt tag_fmt (loop_fmt fmt k)
+      | Formatting_gen (Open_box (Format (box_fmt, _)), fmt) ->
+        loop_fmt box_fmt (loop_fmt fmt k)
       | Reader _ ->
         failwith "reader not supported/1"
       | Scan_char_set _ ->
@@ -160,25 +165,25 @@ module Count = struct
       | Ignored_param (_, _fmt) ->
         failwith "reader not supported/4"
       | End_of_format ->
-        Z
-    and loop_padding : type a b c. (a, b) padding -> (b, c) seq -> (a, c) seq = fun p x ->
+        k
+    and loop_padding : type a b. (a, b) padding -> b seq -> a seq = fun p k ->
       match p with
-      | No_padding -> x
-      | Lit_padding _ -> x
-      | Arg_padding _ -> S x
-    and loop_precision : type a b c. (a, b) precision -> (b, c) seq -> (a, c) seq = fun p x ->
+      | No_padding -> k
+      | Lit_padding _ -> k
+      | Arg_padding _ -> S k
+    and loop_precision : type a b. (a, b) precision -> b seq -> a seq = fun p k ->
       match p with
-      | No_precision -> x
-      | Lit_precision _ -> x
-      | Arg_precision -> S x
+      | No_precision -> k
+      | Lit_precision _ -> k
+      | Arg_precision -> S k
     in
     fun s ->
       let CamlinternalFormat.Fmt_EBB fmt = CamlinternalFormat.fmt_ebb_of_string s in
-      int_of_seq (loop_fmt fmt)
+      int_of_seq (loop_fmt fmt Z)
 end
 
 let num_args loc (format : string) =
-    let format = processed_format_string ~exploded_format_string:(explode loc format) in
+  let format = processed_format_string ~exploded_format_string:(explode loc format) in
   Count.count format
 
 ELSE
