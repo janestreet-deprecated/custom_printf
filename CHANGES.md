@@ -1,3 +1,7 @@
+## 111.25.00
+
+- Fix 4.02 compatibility.
+
 ## 111.21.00
 
 - Fixed a bug in which custom-printf syntax was incompatible with
