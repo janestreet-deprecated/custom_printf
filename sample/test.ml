@@ -58,12 +58,7 @@ TEST "sexp conversion" =
 TEST =
   sprintf !"%d %%{foo" 3
   = "3 %{foo"
-TEST =
-  sprintf !"%d %.2%{foo" 3
-  = "3 %{foo"
-TEST =
-  sprintf !"%d %.2%%{Time}" 3 (Time.now ())
-  = "3 %[Time.to_string (Time.now ())]"
+
 TEST =
   sprintf !"%d %%{%{Time}" 3 (Time.now ())
   = "3 %{[Time.to_string (Time.now ())]"
@@ -105,4 +100,8 @@ TEST_UNIT =
   let g = f !"%{Time}" ~label:(incr r) in
   g (Time.now ()); g (Time.now ());
   assert (!r = 1);
+;;
+
+TEST "format subst" =
+  sprintf !"%(%d%)" "[%d]" 1 = "[1]";
 ;;

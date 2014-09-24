@@ -1,3 +1,9 @@
+## 112.01.00
+
+- Fixed uses of `printf=-style`format strings that have unspecified
+  behavior in OCaml 4.02 and will become errors.
+- Support substitution in format string (lost with 4.02 compatibility)
+
 ## 111.25.00
 
 - Fix 4.02 compatibility.

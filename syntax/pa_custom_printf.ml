@@ -100,9 +100,9 @@ let processed_format_string ~exploded_format_string =
   in
   String.concat l ~sep:""
 
-IFDEF OCAML_4_02 THEN
-
-module Count = struct
+module Count : sig
+  val num_args_of_format_string : string -> int
+end = struct
   open CamlinternalFormatBasics
 
   type 'a seq =
@@ -113,7 +113,7 @@ module Count = struct
     | S x -> int_of_seq x + 1
     | Z -> 0
 
-  let count =
+  let num_args_of_format_string =
     let rec loop_fmt : type a b c d e f. (a, b, c, d, e, f) fmt -> f seq -> a seq = fun fmt k ->
       match fmt with
       | Char fmt ->
@@ -144,8 +144,8 @@ module Count = struct
         loop_fmt fmt k
       | Format_arg (_, _fmtty, fmt) ->
         S (loop_fmt fmt k)
-      | Format_subst _ ->
-        failwith "TODO: support format substitution"
+      | Format_subst (_, fmtty_rel, fmt) ->
+        S (loop_fmtty_rel fmtty_rel (loop_fmt fmt k))
       | Alpha fmt ->
         S (S (loop_fmt fmt k))
       | Theta fmt ->
@@ -157,13 +157,13 @@ module Count = struct
       | Formatting_gen (Open_box (Format (box_fmt, _)), fmt) ->
         loop_fmt box_fmt (loop_fmt fmt k)
       | Reader _ ->
-        failwith "reader not supported/1"
+        failwith "reader not supported (Reader)"
       | Scan_char_set _ ->
-        failwith "reader not supported/2"
+        failwith "reader not supported (Scan_char_set)"
       | Scan_get_counter _ ->
-        failwith "reader not supported/3"
+        failwith "reader not supported (Scan_get_counter)"
       | Ignored_param (_, _fmt) ->
-        failwith "reader not supported/4"
+        failwith "reader not supported (Ignored_param)"
       | End_of_format ->
         k
     and loop_padding : type a b. (a, b) padding -> b seq -> a seq = fun p k ->
@@ -176,6 +176,42 @@ module Count = struct
       | No_precision -> k
       | Lit_precision _ -> k
       | Arg_precision -> S k
+    and loop_fmtty_rel
+      : type a1 b1 c1 d1 e1 f1
+               a2 b2 c2 d2 e2 f2.
+        (a1, b1, c1, d1, e1, f1,
+         a2, b2, c2, d2, e2, f2) fmtty_rel -> f2 seq -> a2 seq = fun fmtty_rel k ->
+      match fmtty_rel with
+      | Char_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | String_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Int_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Int32_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Nativeint_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Int64_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Float_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Bool_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Format_arg_ty (_fmtty, fmtty_rel) ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Format_subst_ty (_a, b, c) ->
+        S (loop_fmtty_rel b (loop_fmtty_rel c k))
+      | Alpha_ty fmtty_rel ->
+        S (S (loop_fmtty_rel fmtty_rel k))
+      | Theta_ty fmtty_rel ->
+        S (loop_fmtty_rel fmtty_rel k)
+      | Reader_ty _ ->
+        failwith "reader not supported (Reader_ty)"
+      | Ignored_reader_ty _ ->
+        failwith "reader not supported (Ignored_reader_ty)"
+      | End_of_fmtty ->
+        k
     in
     fun s ->
       let CamlinternalFormat.Fmt_EBB fmt = CamlinternalFormat.fmt_ebb_of_string s in
@@ -184,16 +220,7 @@ end
 
 let num_args loc (format : string) =
   let format = processed_format_string ~exploded_format_string:(explode loc format) in
-  Count.count format
-
-ELSE
-
-let num_args loc (format : string) =
-  let module P = Printf.CamlinternalPr in
-  let format = processed_format_string ~exploded_format_string:(explode loc format) in
-  (P.Tformat.ac_of_format (Obj.magic format)).P.Tformat.ac_rglr
-
-ENDIF
+  Count.num_args_of_format_string format
 
 let get_sexp_of_quote () =
   try
@@ -261,7 +288,10 @@ let name_to_preserve_side_effects arg =
     | Ast.ExNil _ (* This happens for [~label], which we treat the same as
                      [~label:any_identifier] *)
     | <:expr< $id:_$ >>
-    | <:expr< $int:_$ >> -> false
+    | <:expr< $int:_$ >>
+    | <:expr< $str:_$ >> (* naming a string can break typing when it is
+                            actually a format string  *)
+      -> false
     | _ -> true
   in
   let maybe_name expr =
