@@ -162,6 +162,8 @@ end = struct
         failwith "reader not supported (Scan_char_set)"
       | Scan_get_counter _ ->
         failwith "reader not supported (Scan_get_counter)"
+      | Scan_next_char _ ->
+        failwith "reader not supported (Scan_next_char)"
       | Ignored_param (_, _fmt) ->
         failwith "reader not supported (Ignored_param)"
       | End_of_format ->
