@@ -1,3 +1,14 @@
+## 112.17.00
+
+- Changed `%{M.x}` to call `M.x` instead of `M.Format.x`.
+
+  This is more natural and makes it easy to call arbitrary other
+  functions.
+- Added syntax `%{M#x}`, which calls `M.to_string_x`.
+
+  This makes it easy to use existing modules, since calling functions
+  `to_string` or `to_string_x` is already the convention.
+
 ## 112.01.00
 
 - Fixed uses of `printf=-style`format strings that have unspecified

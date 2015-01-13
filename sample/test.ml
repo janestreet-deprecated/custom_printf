@@ -6,39 +6,46 @@ module Time : sig
   type t
   val now : unit -> t
   val to_string : t -> string
-  module Format : sig
-    val to_sec_string : t -> string
-  end
+  val to_string_sec : t -> string
+  val to_string_abs : t -> string
 end = struct
   type t = string
   let now () = "Time.now ()"
   let to_string t = "[Time.to_string (" ^ t ^ ")]"
-  module Format = struct
-    let to_sec_string t = "[Time.Format.to_sec_string (" ^ t ^ ")]"
-  end
+  let to_string_sec t = "[Time.to_string_sec (" ^ t ^ ")]"
+  let to_string_abs t = "[Time.to_string_abs (" ^ t ^ ")]"
 end
 
 module Zone : sig
   type t
-  val machine_zone : unit -> t
+  val local : t
   val to_string : t -> string
 end = struct
   type t = string
-  let machine_zone () = "Zone.machine_zone ()"
-  let to_string t = "[Zone.to_string (" ^ t ^ ")]"
+  let local = "Zone.local"
+  let to_string t = "[Zone.to_string " ^ t ^ "]"
 end
 
 TEST = sprintf !"The time is %{Time} and the timezone is %{Zone}.\n"
-  (Time.now ()) (Zone.machine_zone ())
+  (Time.now ()) Zone.local
   = "The time is [Time.to_string (Time.now ())] and the timezone is \
-     [Zone.to_string (Zone.machine_zone ())].\n"
+     [Zone.to_string Zone.local].\n"
 
-(* check the X.Format.y kinds of format and that arguments are not
+(* check the X#y kinds of format and that arguments are not
    reversed somehow *)
 TEST =
   let now = Time.now () in
-  sprintf !"%{Time}, %{Time.to_sec_string}\n%!" now now
-  = "[Time.to_string (Time.now ())], [Time.Format.to_sec_string (Time.now ())]\n"
+  sprintf !"%{Time}, %{Time#sec}, %{Time.to_string_abs}\n%!" now now now
+  = "[Time.to_string (Time.now ())], [Time.to_string_sec (Time.now ())], \
+     [Time.to_string_abs (Time.now ())]\n"
+
+(* same as above, with empty module paths *)
+TEST =
+  let open Time in
+  let now = now () in
+  sprintf !"%{}, %{#sec}, %{to_string_abs}\n%!" now now now
+  = "[Time.to_string (Time.now ())], [Time.to_string_sec (Time.now ())], \
+     [Time.to_string_abs (Time.now ())]\n"
 
 (* testing what happens is the expression to the left of the format string
    is a bit complicated *)

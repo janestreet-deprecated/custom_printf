@@ -79,14 +79,23 @@ Using functions other than [M.to_string]
 ========================================
 
 The format specifier "%{<Module-path>.<lowercase_identifier>}" corresponds
-to a function "<Module-path>.Format.<lowercase_identifier>".  So, for
-example:
+to that function.  So, for example:
 
     printf !"The date is %{Core.Std.Date.iso8601_basic}" date
 
 is transformed to:
 
-    printf "The date is %s" (Core.Std.Date.Format.iso8601_basic date)
+    printf "The date is %s" (Core.Std.Date.iso8601_basic date)
+
+Further, the format specifier
+"%{<Module-path>#<lowercase_identifier>}" corresponds to the function
+[<Module_path>.to_string_<lowercase_identifier>].  So, for example:
+
+    printf !"The date is %{Core.Std.Date#hum}" date
+
+is transformed to:
+    
+    printf "The date is %s" (Core.Std.Date.to_string_hum date)
 
 Subformats disallowed
 =====================

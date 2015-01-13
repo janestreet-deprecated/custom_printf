@@ -239,6 +239,13 @@ let chop_prefix s ~prefix =
   then Some (String.sub s ~pos:prefix_len ~len:(String.length s - prefix_len))
   else None
 
+let split s ~on =
+  match String.index s on with
+  | exception Not_found -> None
+  | n ->
+    let len = String.length s in
+    Some (String.sub s ~pos:0 ~len:n, String.sub s ~pos:(n + 1) ~len:(len - n - 1))
+
 let string_to_expr _loc s =
   match chop_prefix s ~prefix:"sexp:" with
   | Some s ->
@@ -252,21 +259,34 @@ let string_to_expr _loc s =
       <:expr<fun $lid:arg$ -> Sexplib.Sexp.to_string_hum ($e$ $lid:arg$)>>
     end
   | None ->
-    match Gram.parse_string Syntax.opt_expr _loc s with
-    | Ast.ExNil _loc -> <:expr<to_string>>
+    let fail _loc =
+      failwithf _loc
+        "string %S should be of the form sexp:<type>, <Module>, <Module>.<identifier>, \
+         or <Module>#identifier"
+        s ()
+    in
+    let s, has_hash_suffix, to_string =
+      match split s ~on:'#' with
+      | None -> s, false, "to_string"
+      | Some (s, hash_suffix) -> s, true, "to_string_" ^ hash_suffix
+    in
+    let parsed =
+      try Gram.parse_string Syntax.opt_expr _loc s
+      with _ -> fail _loc
+    in
+    match parsed with
+    | Ast.ExNil _loc -> <:expr< $lid:to_string$ >>
     | Ast.ExId (_loc,ident) ->
       let l = List.rev (Ast.list_of_ident ident []) in
       let l =
         match List.hd l with
-        | Ast.IdUid (_,_) -> Ast.IdLid (_loc,"to_string") :: l
-        | Ast.IdLid (_loc,_) as lid -> lid :: Ast.IdUid (_loc,"Format") :: List.tl l
-        | _ -> assert false
+        | Ast.IdUid (_loc,_) -> Ast.IdLid (_loc,to_string) :: l
+        | Ast.IdLid (_loc,_) -> if has_hash_suffix then fail _loc; l
+        | _ -> fail _loc
       in
       Ast.ExId (_loc,Ast.idAcc_of_list (List.rev l))
-    | _ ->
-      failwithf _loc
-        "string %S should be of the form sexp:<type>, <Module>, or <Module>.<identifier>"
-        s ()
+    | _ -> fail _loc
+
 
 let apply_exprs _loc expr args =
   List.fold_left ~f:(fun expr arg ->
