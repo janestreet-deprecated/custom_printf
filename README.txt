@@ -35,6 +35,9 @@ is transformed to:
       (Sexplib.Sexp.to_string_hum (<:sexp_of< Time.t >> time)))
 
 This supports arbritrary type expressions.
+
+You can use [Sexplib.Sexp.to_string_mach] instead of
+[Sexplib.Sexp.to_string_hum] by using "%{sexp#mach:<type>}"
      
 Ksprintf
 ========

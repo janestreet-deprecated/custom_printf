@@ -1,3 +1,15 @@
+## 112.24.00
+
+- Added syntax to use `Sexp.to_string_mach` rather than `Sexp.to_string_hum`.
+
+  Added syntax `%{sexp#mach:<type>}`, which is like `%{sexp:<type>}`,
+  except it calls `Sexplib.Sexp.to_string_mach` instead of
+  `Sexplib.Sexp.to_string_hum`.
+
+  In fact, you can put any identifier after the `sexp#` and it will call
+  `Sexplib.Sexp.to_string_<that identifier>`; however, there are no other
+  such functions right now.
+
 ## 112.17.00
 
 - Changed `%{M.x}` to call `M.x` instead of `M.Format.x`.

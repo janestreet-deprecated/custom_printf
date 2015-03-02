@@ -247,22 +247,33 @@ let split s ~on =
     Some (String.sub s ~pos:0 ~len:n, String.sub s ~pos:(n + 1) ~len:(len - n - 1))
 
 let string_to_expr _loc s =
-  match chop_prefix s ~prefix:"sexp:" with
-  | Some s ->
+  let sexp_converter_opt =
+    match split s ~on:':' with
+    | None -> None
+    | Some ("sexp", colon_suffix) ->
+      Some (<:expr< Sexplib.Sexp.to_string_hum >>, colon_suffix)
+    | Some (colon_prefix, colon_suffix) ->
+      match chop_prefix colon_prefix ~prefix:"sexp#" with
+      | None -> None
+      | Some hash_suffix ->
+        Some (<:expr< Sexplib.Sexp.$lid:"to_string_" ^ hash_suffix$>>, colon_suffix)
+  in
+  match sexp_converter_opt with
+  | Some (sexp_converter, unparsed_type) ->
     begin match get_sexp_of_quote () with
     | None ->
       failwithf _loc "sexp converter is used in %S, but no \"sexp_of\" quotation could \
                       be found (include pa_sexp?)" s ()
     | Some sexp_of_quote ->
-      let e = sexp_of_quote _loc None s in
+      let e = sexp_of_quote _loc None unparsed_type in
       let arg = gensym () in
-      <:expr<fun $lid:arg$ -> Sexplib.Sexp.to_string_hum ($e$ $lid:arg$)>>
+      <:expr<fun $lid:arg$ -> $sexp_converter$ ($e$ $lid:arg$)>>
     end
   | None ->
     let fail _loc =
       failwithf _loc
-        "string %S should be of the form sexp:<type>, <Module>, <Module>.<identifier>, \
-         or <Module>#identifier"
+        "string %S should be of the form <Module>, <Module>.<identifier>, \
+         <Module>#identifier, sexp:<type>, or sexp#mach:<type>"
         s ()
     in
     let s, has_hash_suffix, to_string =

@@ -61,6 +61,18 @@ TEST "sexp conversion" =
   sprintf !"The pair is: %{sexp:int * string}" (4,"asdf")
   = "The pair is: (4 asdf)"
 
+(* checking sexp#mach: format *)
+TEST "sexp#mach conversion" =
+  let module Sexplib = struct
+    module Sexp = struct
+      include Sexplib.Sexp
+      let to_string_mach sexp = to_string sexp ^ " (in machine format)"
+    end
+  end
+  in
+  sprintf !"The pair is: %{sexp#mach:int * string}" (4,"asdf")
+  = "The pair is: (4 asdf) (in machine format)"
+
 (* checking tricky formats *)
 TEST =
   sprintf !"%d %%{foo" 3
