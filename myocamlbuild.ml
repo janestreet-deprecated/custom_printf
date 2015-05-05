@@ -5,7 +5,7 @@ let dispatch = function
   | Before_options ->
     Options.make_links := false
   | After_rules ->
-    let tag = "pa_custom_printf" and file = "syntax/pa_custom_printf.cmo" in
+    let tag = "pa_custom_printf" and file = "src/pa_custom_printf.cmo" in
     flag ["ocaml"; "compile"; tag] & S[A"-ppopt"; A file];
     flag ["ocaml"; "ocamldep"; tag] & S[A"-ppopt"; A file];
     flag ["ocaml"; "doc"; tag] & S[A"-ppopt"; A file];

@@ -26,7 +26,7 @@ Library custom_printf
   XMETAType:          library
 
 Library pa_custom_printf
-  Path:               syntax
+  Path:               src
   Modules:            Pa_custom_printf
   FindlibParent:      custom_printf
   FindlibName:        syntax
@@ -42,7 +42,7 @@ Executable test
   Install:            false
   Build:              true
   MainIs:             test.ml
-  Path:               sample
+  Path:               example
   BuildDepends:       sexplib,
                       sexplib.syntax,
                       pa_ounit,
