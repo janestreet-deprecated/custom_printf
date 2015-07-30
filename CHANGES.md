@@ -1,3 +1,7 @@
+## 113.00.00
+
+- Upgraded from OCaml `4.02.1` to `4.02.2`
+
 ## 112.24.00
 
 - Added syntax to use `Sexp.to_string_mach` rather than `Sexp.to_string_hum`.

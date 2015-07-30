@@ -166,6 +166,8 @@ end = struct
         failwith "reader not supported (Scan_next_char)"
       | Ignored_param (_, _fmt) ->
         failwith "reader not supported (Ignored_param)"
+      | Custom (_, _, _) ->
+        failwith "reader not supported (Custom)"
       | End_of_format ->
         k
     and loop_padding : type a b. (a, b) padding -> b seq -> a seq = fun p k ->
@@ -212,6 +214,8 @@ end = struct
         failwith "reader not supported (Reader_ty)"
       | Ignored_reader_ty _ ->
         failwith "reader not supported (Ignored_reader_ty)"
+      | Any_ty _ ->
+        failwith "reader not supported (Any_ty)"
       | End_of_fmtty ->
         k
     in
